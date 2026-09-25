@@ -36,13 +36,18 @@ log "vhost 目录: $VHOST_DIR"
 
 # ---------- 3. 备份并处理默认 default_server 冲突 ----------
 log "扫描现有 default_server (避免冲突)"
-grep -rlE "listen\s+80.*default_server" "$VHOST_DIR" 2>/dev/null | while read f; do
-    if [ "$f" != "$VHOST_DIR/epsilon.conf" ]; then
-        log "  发现冲突 $f, 备份为 $f.bak"
-        cp "$f" "$f.bak"
-        sed -i 's/default_server//g' "$f"
-    fi
-done
+CONFLICTS=$(grep -rlE "listen\s+80.*default_server" "$VHOST_DIR" 2>/dev/null || true)
+if [ -n "$CONFLICTS" ]; then
+    while read -r f; do
+        if [ "$f" != "$VHOST_DIR/epsilon.conf" ]; then
+            log "  发现冲突 $f, 备份为 $f.bak"
+            cp "$f" "$f.bak"
+            sed -i 's/default_server//g' "$f"
+        fi
+    done <<< "$CONFLICTS"
+else
+    log "  无冲突"
+fi
 
 # ---------- 4. 写反代配置 ----------
 CONF="$VHOST_DIR/epsilon.conf"
