@@ -1,0 +1,33 @@
+# Binaries
+/bin/
+*.exe
+*.exe~
+epsilon
+epsilon-linux
+
+# Config with secrets (only example is committed)
+/configs/config.yaml
+.env
+
+# Data / DB
+/data/
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+/logs/
+
+# Go
+/vendor/

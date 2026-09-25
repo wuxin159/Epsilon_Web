@@ -1,0 +1,21 @@
+[Unit]
+Description=Epsilon Auth Server
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/epsilon
+ExecStart=/opt/epsilon/epsilon --config /opt/epsilon/configs/config.yaml
+Restart=always
+RestartSec=5
+LimitNOFILE=65536
+
+# Basic hardening
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

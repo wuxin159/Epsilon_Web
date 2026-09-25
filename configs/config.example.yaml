@@ -1,0 +1,15 @@
+server:
+  addr: ":8080"
+  mode: "release"   # debug | release
+
+database:
+  path: "./data/epsilon.db"
+
+auth:
+  # 生产环境务必替换成足够长的随机串 (>= 32 字节)
+  # 生成命令: openssl rand -hex 32
+  secret: "CHANGE_ME_TO_A_LONG_RANDOM_STRING"
+  timestamp_window: 300   # 允许的时间戳偏移(秒)，防重放
+
+download:
+  root_dir: "./data/downloads"
