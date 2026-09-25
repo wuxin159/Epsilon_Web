@@ -8,6 +8,7 @@ epsilon-linux
 # Config with secrets (only example is committed)
 /configs/config.yaml
 .env
+.deploy.env
 
 # Data / DB
 /data/

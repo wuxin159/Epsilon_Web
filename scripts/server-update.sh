@@ -6,7 +6,7 @@
 #   bash /opt/epsilon-src/scripts/server-update.sh
 #
 # 或从本地一键触发:
-#   ssh root@YOUR_SERVER_IP 'bash /opt/epsilon-src/scripts/server-update.sh'
+#   ssh root@<你的服务器IP> 'bash /opt/epsilon-src/scripts/server-update.sh'
 # ============================================================
 set -euo pipefail
 

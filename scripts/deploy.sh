@@ -8,7 +8,12 @@
 # ============================================================
 set -euo pipefail
 
-: "${SERVER:=root@YOUR_SERVER_IP}"
+# 服务器地址：默认从环境变量读，也可以写入 .deploy.env (gitignored)
+if [ -f "$(dirname "$0")/../.deploy.env" ]; then
+    # shellcheck disable=SC1091
+    source "$(dirname "$0")/../.deploy.env"
+fi
+: "${SERVER:?请设置 SERVER 环境变量，或在项目根建 .deploy.env 写 SERVER=root@x.x.x.x}"
 : "${SSH_PORT:=22}"
 
 # 检查有没有未提交的东西

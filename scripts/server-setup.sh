@@ -102,10 +102,11 @@ echo
 log "监听端口:"
 ss -tlnp | grep -E ':8080|epsilon' || echo "  (未监听 8080，去 journalctl -u epsilon 看日志)"
 
+SERVER_IP=$(curl -s --max-time 3 ifconfig.me 2>/dev/null || echo "<你的公网IP>")
 echo
 log "首次部署完成。下一步:"
 echo "   1. 云厂商安全组放行端口 8080 (或走 Nginx 反代到 80/443)"
 echo "   2. curl http://127.0.0.1:8080/health   # 服务器上自测"
-echo "   3. curl http://YOUR_SERVER_IP:8080/health   # 外网自测"
-echo "   4. 浏览器打开 http://YOUR_SERVER_IP:8080/admin/  用上面的账号登录"
+echo "   3. curl http://${SERVER_IP}:8080/health   # 外网自测"
+echo "   4. 浏览器打开 http://${SERVER_IP}:8080/admin/  用上面的账号登录"
 echo "   5. 如需域名 + HTTPS: 在宝塔面板配 Nginx 反代 127.0.0.1:8080"
