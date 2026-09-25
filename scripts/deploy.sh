@@ -1,43 +1,27 @@
 #!/usr/bin/env bash
-# 一键部署到远端服务器。使用前请设置 SERVER 环境变量或修改默认值。
+# ============================================================
+# 本地一键部署 —— push GitHub + 触发服务器拉取&重启
+#
+# 用法:
+#   ./scripts/deploy.sh                       # 用默认服务器
+#   SERVER=root@x.x.x.x ./scripts/deploy.sh   # 指定别的机器
+# ============================================================
 set -euo pipefail
 
 : "${SERVER:=root@YOUR_SERVER_IP}"
 : "${SSH_PORT:=22}"
-: "${REMOTE_DIR:=/opt/epsilon}"
 
-cd "$(dirname "$0")/.."
+# 检查有没有未提交的东西
+if ! git diff --quiet || ! git diff --cached --quiet; then
+    echo "!! 有未提交的改动，请先 git commit"
+    git status --short
+    exit 1
+fi
 
-echo "==> build"
-./scripts/build.sh
+echo "==> git push"
+git push origin main
 
-echo "==> ensure remote dirs"
-ssh -p "$SSH_PORT" "$SERVER" "mkdir -p $REMOTE_DIR/configs $REMOTE_DIR/data/downloads /var/log/epsilon"
+echo "==> 触发服务器更新 ($SERVER)"
+ssh -p "$SSH_PORT" "$SERVER" 'bash /opt/epsilon-src/scripts/server-update.sh'
 
-echo "==> upload binaries"
-scp -P "$SSH_PORT" bin/epsilon-linux       "$SERVER":"$REMOTE_DIR/epsilon.new"
-scp -P "$SSH_PORT" bin/epsilon-admin-linux "$SERVER":"$REMOTE_DIR/epsilon-admin"
-
-echo "==> upload systemd unit"
-scp -P "$SSH_PORT" deploy/epsilon.service  "$SERVER":/etc/systemd/system/epsilon.service
-
-echo "==> upload config example (只在远端不存在真实 config 时才生效)"
-scp -P "$SSH_PORT" configs/config.example.yaml "$SERVER":"$REMOTE_DIR/configs/config.example.yaml"
-
-echo "==> restart"
-ssh -p "$SSH_PORT" "$SERVER" "
-  set -e
-  chmod +x $REMOTE_DIR/epsilon.new $REMOTE_DIR/epsilon-admin
-  mv $REMOTE_DIR/epsilon.new $REMOTE_DIR/epsilon
-  if [ ! -f $REMOTE_DIR/configs/config.yaml ]; then
-    echo '!! 远端 configs/config.yaml 不存在，请先编辑 config.example.yaml 并另存为 config.yaml'
-    exit 2
-  fi
-  systemctl daemon-reload
-  systemctl enable epsilon
-  systemctl restart epsilon
-  sleep 1
-  systemctl status epsilon --no-pager | head -20
-"
-
-echo "==> deploy ok"
+echo "==> 完成"
