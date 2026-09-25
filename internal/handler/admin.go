@@ -47,6 +47,7 @@ func RegisterAdmin(r *gin.Engine, cfg *config.Config,
 	d.registerLicenseRoutes(group)
 	d.registerFileRoutes(group)
 	d.registerAuditRoutes(group)
+	d.registerServerRoutes(group)
 }
 
 // actorOf 从 gin BasicAuth 中间件里取当前登录的用户名。

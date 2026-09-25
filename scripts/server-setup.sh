@@ -52,10 +52,13 @@ mkdir -p "$APP_DIR/configs" "$APP_DIR/data/downloads" /var/log/epsilon
 
 # ---------- 编译 ----------
 cd "$SRC_DIR"
-log "编译 server"
-CGO_ENABLED=0 go build -ldflags="-s -w" -o "$APP_DIR/epsilon"       ./cmd/server
+COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo dev)
+BUILT_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+LDFLAGS="-s -w -X main.buildCommit=$COMMIT -X main.buildTime=$BUILT_AT"
+log "编译 server (commit=$COMMIT, built=$BUILT_AT)"
+CGO_ENABLED=0 go build -ldflags="$LDFLAGS" -o "$APP_DIR/epsilon"       ./cmd/server
 log "编译 admin"
-CGO_ENABLED=0 go build -ldflags="-s -w" -o "$APP_DIR/epsilon-admin" ./cmd/admin
+CGO_ENABLED=0 go build -ldflags="$LDFLAGS" -o "$APP_DIR/epsilon-admin" ./cmd/admin
 chmod +x "$APP_DIR/epsilon" "$APP_DIR/epsilon-admin"
 
 # ---------- 首次生成 config.yaml ----------

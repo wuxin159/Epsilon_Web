@@ -23,9 +23,12 @@ cd "$SRC_DIR"
 git fetch --all --prune
 git reset --hard origin/main
 
-log "编译"
-CGO_ENABLED=0 go build -ldflags="-s -w" -o "$APP_DIR/epsilon.new"        ./cmd/server
-CGO_ENABLED=0 go build -ldflags="-s -w" -o "$APP_DIR/epsilon-admin.new"  ./cmd/admin
+COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo dev)
+BUILT_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+LDFLAGS="-s -w -X main.buildCommit=$COMMIT -X main.buildTime=$BUILT_AT"
+log "编译 (commit=$COMMIT, built=$BUILT_AT)"
+CGO_ENABLED=0 go build -ldflags="$LDFLAGS" -o "$APP_DIR/epsilon.new"        ./cmd/server
+CGO_ENABLED=0 go build -ldflags="$LDFLAGS" -o "$APP_DIR/epsilon-admin.new"  ./cmd/admin
 
 log "热替换二进制"
 mv "$APP_DIR/epsilon.new"       "$APP_DIR/epsilon"

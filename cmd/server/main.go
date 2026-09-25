@@ -17,6 +17,13 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// 编译时通过 ldflags 注入:
+//   go build -ldflags="-X main.buildCommit=abc -X main.buildTime=2026-..."
+var (
+	buildCommit = "dev"
+	buildTime   = "unknown"
+)
+
 func main() {
 	configPath := flag.String("config", "configs/config.yaml", "path to config file")
 	flag.Parse()
@@ -51,8 +58,16 @@ func main() {
 	r.Use(gin.Recovery(), handler.Logger())
 	r.MaxMultipartMemory = 8 << 20 // 8MB in memory, rest spills to temp file
 
+	// 把 build 信息注入 handler 包 (给 admin 面板显示当前版本用)
+	handler.BuildCommit = buildCommit
+	handler.BuildTime = buildTime
+
 	r.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"status": "ok", "time": time.Now().Unix()})
+		c.JSON(http.StatusOK, gin.H{
+			"status": "ok",
+			"time":   time.Now().Unix(),
+			"commit": buildCommit,
+		})
 	})
 	handler.RegisterAuth(r, cfg, licenseRepo)
 	handler.RegisterDownload(r, cfg, licenseRepo)

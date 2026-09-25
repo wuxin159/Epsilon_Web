@@ -266,6 +266,10 @@
   <header>
     <h1><span class="dot">●</span> Epsilon 管理后台</h1>
     <div class="stats">
+      <span title="点击按钮拉最新代码 + 重编 + 重启">
+        版本 <b id="server-commit">-</b>
+        <button id="btn-update-server" class="ghost mini" style="margin-left:6px;" title="从 GitHub 拉最新代码并重启">↻ 更新</button>
+      </span>
       <span>授权 <b id="stat-lic-total">-</b></span>
       <span>文件 <b id="stat-file-total">-</b></span>
       <span>日志 <b id="stat-audit-total">-</b></span>
@@ -781,7 +785,76 @@ $('#audit-target').addEventListener('input', () => {
 });
 $('#audit-refresh').addEventListener('click', loadAudit);
 
+// ============ 服务器版本 / 一键更新 ============
+const commitEl = $('#server-commit');
+const updateBtn = $('#btn-update-server');
+
+async function loadVersion() {
+  try {
+    const v = await api('GET', 'api/server/version');
+    commitEl.textContent = v.commit || '?';
+    commitEl.title = `built ${v.built_at || '?'} · started ${fmtTime(v.started_at)}`;
+    if (v.updating) {
+      // 页面加载时如果正在更新, 直接进轮询
+      pollForNewCommit(v.commit);
+    }
+  } catch (e) {
+    commitEl.textContent = 'error';
+  }
+}
+
+updateBtn.addEventListener('click', async () => {
+  if (!confirm('确认从 GitHub 拉最新代码并重启服务?\n\n服务器会短暂重启(约 5-15 秒),期间管理页面会短暂不可用。')) return;
+  updateBtn.disabled = true;
+  updateBtn.textContent = '触发中...';
+  try {
+    const r = await api('POST', 'api/server/update');
+    toast('已触发更新,等待服务重启...');
+    updateBtn.textContent = '更新中...';
+    pollForNewCommit(r.commit_before);
+  } catch (e) {
+    toast('触发失败: ' + e.message, false);
+    updateBtn.disabled = false;
+    updateBtn.textContent = '↻ 更新';
+  }
+});
+
+async function pollForNewCommit(oldCommit) {
+  const startedAt = Date.now();
+  const timeout   = 120 * 1000;   // 2 分钟够 git+build+restart
+  const interval  = 2000;
+
+  const tick = async () => {
+    if (Date.now() - startedAt > timeout) {
+      toast('更新轮询超时,请手动检查 (journalctl -u epsilon-update-* -n 50)', false);
+      updateBtn.disabled = false;
+      updateBtn.textContent = '↻ 更新';
+      return;
+    }
+    try {
+      // /health 不需要 admin auth, 直接 fetch 根路径
+      const res = await fetch('/health', { cache: 'no-store' });
+      if (res.ok) {
+        const h = await res.json();
+        if (h.commit && h.commit !== oldCommit) {
+          toast(`更新完成! ${oldCommit || '-'} → ${h.commit}`);
+          commitEl.textContent = h.commit;
+          updateBtn.disabled = false;
+          updateBtn.textContent = '↻ 更新';
+          // 数据可能有变, 刷一遍
+          loadLicenses(); loadFiles();
+          if ($('#tab-audit').classList.contains('active')) loadAudit();
+          return;
+        }
+      }
+    } catch (e) { /* 服务器可能正在重启, 忽略并继续轮询 */ }
+    setTimeout(tick, interval);
+  };
+  tick();
+}
+
 // ============ 启动 ============
+loadVersion();
 loadLicenses();
 loadFiles();  // 预加载让 tab count 正确
 </script>
