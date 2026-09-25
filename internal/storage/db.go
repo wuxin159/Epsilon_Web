@@ -40,6 +40,28 @@ CREATE TABLE IF NOT EXISTS licenses (
     created_at    INTEGER NOT NULL,
     updated_at    INTEGER NOT NULL
 );
-
 CREATE INDEX IF NOT EXISTS idx_licenses_machine_code ON licenses(machine_code);
+
+CREATE TABLE IF NOT EXISTS files (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    filename      TEXT NOT NULL UNIQUE,
+    size          INTEGER NOT NULL,
+    md5           TEXT NOT NULL,
+    uploaded_at   INTEGER NOT NULL,
+    uploaded_by   TEXT NOT NULL DEFAULT '',
+    note          TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS idx_files_uploaded_at ON files(uploaded_at DESC);
+
+CREATE TABLE IF NOT EXISTS audit_log (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts         INTEGER NOT NULL,
+    actor      TEXT NOT NULL DEFAULT '',
+    category   TEXT NOT NULL,
+    action     TEXT NOT NULL,
+    target     TEXT NOT NULL,
+    details    TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS idx_audit_ts ON audit_log(ts DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_cat_target ON audit_log(category, target);
 `

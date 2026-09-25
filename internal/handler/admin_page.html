@@ -3,11 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Epsilon 授权管理</title>
+<title>Epsilon 管理后台</title>
 <style>
   :root {
     --bg: #0f172a;
     --panel: #1e293b;
+    --panel-2: #263449;
     --border: #334155;
     --text: #e2e8f0;
     --muted: #94a3b8;
@@ -27,16 +28,31 @@
     padding: 24px;
     min-height: 100vh;
   }
-  .container { max-width: 1200px; margin: 0 auto; }
+  .container { max-width: 1300px; margin: 0 auto; }
   header {
     display: flex; justify-content: space-between; align-items: center;
-    margin-bottom: 24px; padding-bottom: 16px;
+    margin-bottom: 20px; padding-bottom: 16px;
     border-bottom: 1px solid var(--border);
   }
   h1 { margin: 0; font-size: 20px; font-weight: 600; letter-spacing: 0.5px; }
   h1 .dot { color: var(--accent); }
   .stats { display: flex; gap: 16px; font-size: 13px; color: var(--muted); }
   .stats span b { color: var(--text); }
+
+  /* --- Tabs --- */
+  .tabs { display: flex; gap: 4px; margin-bottom: 20px; border-bottom: 1px solid var(--border); }
+  .tab-btn {
+    background: transparent; border: none; color: var(--muted);
+    padding: 12px 20px; font-size: 14px; cursor: pointer;
+    border-bottom: 2px solid transparent; margin-bottom: -1px;
+    transition: all 0.15s;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab-btn .count { font-size: 11px; color: var(--muted); margin-left: 4px; padding: 2px 6px; background: var(--panel); border-radius: 8px; }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; animation: fade 0.15s; }
+  @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
 
   .card {
     background: var(--panel);
@@ -45,7 +61,7 @@
     padding: 20px;
     margin-bottom: 20px;
   }
-  .card h2 { margin: 0 0 16px; font-size: 15px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+  .card h2 { margin: 0 0 16px; font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
 
   .form-row {
     display: grid;
@@ -57,26 +73,29 @@
     display: flex; flex-direction: column; gap: 6px;
     font-size: 12px; color: var(--muted);
   }
-  input, button {
+  input, button, select, textarea {
     font-family: inherit; font-size: 14px;
     padding: 9px 12px; border-radius: 6px; border: 1px solid var(--border);
-    background: var(--bg); color: var(--text);
-    outline: none;
+    background: var(--bg); color: var(--text); outline: none;
   }
-  input:focus { border-color: var(--accent); }
+  input:focus, select:focus, textarea:focus { border-color: var(--accent); }
   button {
     cursor: pointer; background: var(--accent); border-color: var(--accent);
     font-weight: 500; padding: 9px 18px;
     transition: background 0.15s;
   }
   button:hover { background: var(--accent-hover); }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
   button.danger { background: transparent; border-color: var(--border); color: var(--err); padding: 4px 10px; font-size: 12px; }
   button.danger:hover { background: var(--danger-bg); color: white; border-color: var(--err); }
-  button.ghost { background: transparent; border-color: var(--border); color: var(--muted); }
+  button.ghost { background: transparent; border-color: var(--border); color: var(--muted); padding: 4px 10px; font-size: 12px; }
   button.ghost:hover { background: var(--border); color: var(--text); }
+  button.warn { background: transparent; border-color: var(--warn); color: var(--warn); padding: 4px 10px; font-size: 12px; }
+  button.warn:hover { background: rgba(245, 158, 11, 0.15); }
+  button.mini { padding: 3px 8px; font-size: 11px; }
 
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
   th { color: var(--muted); font-weight: 500; text-transform: uppercase; font-size: 11px; letter-spacing: 0.8px; }
   td.mono { font-family: "JetBrains Mono", Consolas, "Courier New", monospace; font-size: 12px; }
   tr:hover td { background: rgba(255,255,255,0.02); }
@@ -88,9 +107,15 @@
   .pill.ok { background: rgba(34, 197, 94, 0.15); color: var(--ok); }
   .pill.warn { background: rgba(245, 158, 11, 0.15); color: var(--warn); }
   .pill.err { background: rgba(239, 68, 68, 0.15); color: var(--err); }
+  .pill.info { background: rgba(59, 130, 246, 0.15); color: var(--accent); }
+  .pill.muted { background: var(--panel-2); color: var(--muted); }
 
-  .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-  .toolbar .search { flex: 1; max-width: 300px; }
+  .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 12px; }
+  .toolbar h2 { margin: 0; }
+  .toolbar .grow { flex: 1; }
+  .search { flex: 1; max-width: 300px; }
+
+  .actions { display: inline-flex; gap: 6px; flex-wrap: wrap; }
 
   #toast {
     position: fixed; bottom: 24px; right: 24px;
@@ -104,64 +129,189 @@
   #toast.err { border-color: var(--err); }
 
   .empty { text-align: center; padding: 40px; color: var(--muted); font-size: 13px; }
-  .muted { color: var(--muted); font-size: 12px; }
+  .muted { color: var(--muted); }
+
+  /* --- File upload area --- */
+  .dropzone {
+    border: 2px dashed var(--border); border-radius: 8px;
+    padding: 30px; text-align: center; cursor: pointer;
+    transition: all 0.15s;
+  }
+  .dropzone:hover, .dropzone.drag { border-color: var(--accent); background: rgba(59, 130, 246, 0.05); }
+  .dropzone p { margin: 0; color: var(--muted); font-size: 14px; }
+  .dropzone .picked { color: var(--text); font-weight: 500; }
+
+  .progress {
+    height: 4px; background: var(--border); border-radius: 2px; overflow: hidden;
+    margin-top: 12px; display: none;
+  }
+  .progress .bar { height: 100%; background: var(--accent); width: 0%; transition: width 0.1s; }
+
+  /* --- Audit details JSON --- */
+  .details {
+    font-family: "JetBrains Mono", Consolas, "Courier New", monospace;
+    font-size: 11px; color: var(--muted);
+    max-width: 400px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    cursor: pointer;
+  }
+  .details.expanded { white-space: pre-wrap; overflow: visible; max-width: none; }
+
+  .md5-cell { display: inline-flex; align-items: center; gap: 6px; }
+  .md5-short { font-family: "JetBrains Mono", monospace; font-size: 11px; }
+
+  .action-color-create, .action-color-upload { color: var(--ok); }
+  .action-color-replace, .action-color-extend  { color: var(--accent); }
+  .action-color-reduce  { color: var(--warn); }
+  .action-color-delete  { color: var(--err); }
 </style>
 </head>
 <body>
 <div class="container">
   <header>
-    <h1><span class="dot">●</span> Epsilon 授权管理</h1>
+    <h1><span class="dot">●</span> Epsilon 管理后台</h1>
     <div class="stats">
-      <span>总数 <b id="stat-total">0</b></span>
-      <span>有效 <b id="stat-valid" style="color: var(--ok)">0</b></span>
-      <span>即将过期 <b id="stat-warn" style="color: var(--warn)">0</b></span>
-      <span>已过期 <b id="stat-expired" style="color: var(--err)">0</b></span>
+      <span>授权 <b id="stat-lic-total">-</b></span>
+      <span>文件 <b id="stat-file-total">-</b></span>
+      <span>日志 <b id="stat-audit-total">-</b></span>
     </div>
   </header>
 
-  <div class="card">
-    <h2>新增 / 续期</h2>
-    <form id="upsert-form" class="form-row">
-      <label>机器码
-        <input id="in-code" type="text" placeholder="MACHINE-XXXX" required autocomplete="off">
-      </label>
-      <label>有效天数
-        <input id="in-days" type="number" placeholder="365" required min="1" value="365">
-      </label>
-      <label>备注 (可选)
-        <input id="in-note" type="text" placeholder="客户名 / 来源 / 备注" autocomplete="off">
-      </label>
-      <button type="submit">保存</button>
-    </form>
-    <p class="muted" style="margin: 12px 0 0;">
-      · 已存在的机器码会被<b>覆盖</b>到期时间（从今天起算 N 天）<br>
-      · 想续期一年就写 365，永久授权可以填 36500（100 年）
-    </p>
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="licenses">授权设备<span class="count" id="tab-count-licenses">0</span></button>
+    <button class="tab-btn" data-tab="files">文件管理<span class="count" id="tab-count-files">0</span></button>
+    <button class="tab-btn" data-tab="audit">操作日志</button>
   </div>
 
-  <div class="card">
-    <div class="toolbar">
-      <h2 style="margin:0;">授权列表</h2>
-      <div style="display: flex; gap: 8px;">
-        <input class="search" id="search" type="text" placeholder="搜索机器码或备注..." autocomplete="off">
-        <button class="ghost" id="btn-refresh">刷新</button>
-      </div>
+  <!-- ==================== Tab 1: 授权设备 ==================== -->
+  <div class="tab-panel active" id="tab-licenses">
+    <div class="card">
+      <h2>新增 / 覆盖 (从今天起 N 天)</h2>
+      <form id="lic-form" class="form-row">
+        <label>机器码
+          <input id="lic-code" type="text" placeholder="MACHINE-XXXX" required autocomplete="off">
+        </label>
+        <label>有效天数
+          <input id="lic-days" type="number" placeholder="365" required min="1" value="365">
+        </label>
+        <label>备注 (可选)
+          <input id="lic-note" type="text" placeholder="客户名 / 来源 / 备注" autocomplete="off">
+        </label>
+        <button type="submit">保存</button>
+      </form>
+      <p class="muted" style="margin: 12px 0 0; font-size: 12px;">
+        · 已存在的机器码会被<b>覆盖</b>到期时间（从今天起算 N 天）<br>
+        · 想在原基础上加/减时间，用列表里每一行的「+30d」「-30d」「±」按钮
+      </p>
     </div>
-    <table>
-      <thead>
-        <tr>
-          <th>机器码</th>
-          <th>到期时间</th>
-          <th>状态</th>
-          <th>备注</th>
-          <th>更新时间</th>
-          <th style="text-align:right;">操作</th>
-        </tr>
-      </thead>
-      <tbody id="tbody">
-        <tr><td colspan="6" class="empty">加载中...</td></tr>
-      </tbody>
-    </table>
+
+    <div class="card">
+      <div class="toolbar">
+        <h2>授权列表</h2>
+        <div class="grow"></div>
+        <div style="display:flex; gap:8px; font-size:13px; color:var(--muted);">
+          <span>有效 <b id="stat-lic-valid" style="color:var(--ok)">0</b></span>
+          <span>临期 <b id="stat-lic-warn" style="color:var(--warn)">0</b></span>
+          <span>已过期 <b id="stat-lic-expired" style="color:var(--err)">0</b></span>
+        </div>
+        <input class="search" id="lic-search" type="text" placeholder="搜索机器码 / 备注...">
+        <button class="ghost" id="lic-refresh">刷新</button>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>机器码</th>
+            <th>到期时间</th>
+            <th>状态</th>
+            <th>备注</th>
+            <th>更新</th>
+            <th style="text-align:right;">操作</th>
+          </tr>
+        </thead>
+        <tbody id="lic-tbody">
+          <tr><td colspan="6" class="empty">加载中...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ==================== Tab 2: 文件管理 ==================== -->
+  <div class="tab-panel" id="tab-files">
+    <div class="card">
+      <h2>上传文件 (拖拽 或 点击选择, 相同文件名会覆盖)</h2>
+      <div class="dropzone" id="dropzone">
+        <p id="dropzone-hint">拖拽文件到此处，或 <b>点击选择</b> (单个 &le; 500MB)</p>
+        <input type="file" id="file-input" hidden>
+      </div>
+      <div style="display: grid; grid-template-columns: 3fr 1fr; gap: 12px; margin-top: 12px;">
+        <label>备注 (可选)
+          <input id="file-note" type="text" placeholder="版本号 / 说明" autocomplete="off">
+        </label>
+        <label>&nbsp;
+          <button id="file-upload-btn" disabled>上传</button>
+        </label>
+      </div>
+      <div class="progress" id="file-progress"><div class="bar"></div></div>
+    </div>
+
+    <div class="card">
+      <div class="toolbar">
+        <h2>文件列表</h2>
+        <div class="grow"></div>
+        <div style="font-size:13px; color:var(--muted);">
+          总大小 <b id="stat-file-size">0</b>
+        </div>
+        <input class="search" id="file-search" type="text" placeholder="搜索文件名 / MD5...">
+        <button class="ghost" id="file-refresh">刷新</button>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>文件名</th>
+            <th>大小</th>
+            <th>MD5</th>
+            <th>上传时间</th>
+            <th>上传者</th>
+            <th>备注</th>
+            <th style="text-align:right;">操作</th>
+          </tr>
+        </thead>
+        <tbody id="file-tbody">
+          <tr><td colspan="7" class="empty">加载中...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ==================== Tab 3: 操作日志 ==================== -->
+  <div class="tab-panel" id="tab-audit">
+    <div class="card">
+      <div class="toolbar">
+        <h2>操作日志 (点击一行的"详情"展开完整 JSON)</h2>
+        <div class="grow"></div>
+        <select id="audit-cat" style="width: 120px;">
+          <option value="">全部类别</option>
+          <option value="license">授权</option>
+          <option value="file">文件</option>
+        </select>
+        <input class="search" id="audit-target" type="text" placeholder="按对象名过滤...">
+        <button class="ghost" id="audit-refresh">刷新</button>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 150px;">时间</th>
+            <th style="width: 90px;">操作人</th>
+            <th style="width: 70px;">类别</th>
+            <th style="width: 90px;">动作</th>
+            <th>对象</th>
+            <th>详情</th>
+          </tr>
+        </thead>
+        <tbody id="audit-tbody">
+          <tr><td colspan="6" class="empty">加载中...</td></tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 </div>
 
@@ -170,30 +320,35 @@
 <script>
 'use strict';
 
-const $ = (sel) => document.querySelector(sel);
-const tbody = $('#tbody');
-const search = $('#search');
-let cache = [];
+const $ = (sel, root = document) => root.querySelector(sel);
+const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
+// ============ 工具函数 ============
 function fmtTime(unix) {
   if (!unix) return '-';
   const d = new Date(unix * 1000);
   const pad = (n) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
-
+function fmtSize(bytes) {
+  if (bytes === 0) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(1024));
+  return (bytes / Math.pow(1024, i)).toFixed(i === 0 ? 0 : 2) + ' ' + units[i];
+}
 function daysLeft(expireAt) {
   const now = Math.floor(Date.now() / 1000);
   return Math.floor((expireAt - now) / 86400);
 }
-
-function status(expireAt) {
+function licStatus(expireAt) {
   const d = daysLeft(expireAt);
   if (d < 0)  return { cls: 'err',  text: `已过期 ${-d} 天` };
   if (d < 7)  return { cls: 'warn', text: `${d} 天内过期` };
   return { cls: 'ok', text: `剩余 ${d} 天` };
 }
-
+function escapeHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
+}
 function toast(msg, ok = true) {
   const el = $('#toast');
   el.textContent = msg;
@@ -201,7 +356,6 @@ function toast(msg, ok = true) {
   clearTimeout(toast._t);
   toast._t = setTimeout(() => el.className = '', 2500);
 }
-
 async function api(method, path, body) {
   const opts = { method, headers: {} };
   if (body) {
@@ -214,100 +368,320 @@ async function api(method, path, body) {
   return data;
 }
 
-function render() {
-  const q = search.value.trim().toLowerCase();
+// ============ Tab 切换 ============
+$$('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const tab = btn.dataset.tab;
+    $$('.tab-btn').forEach(b => b.classList.toggle('active', b === btn));
+    $$('.tab-panel').forEach(p => p.classList.toggle('active', p.id === 'tab-' + tab));
+    if (tab === 'audit') loadAudit();
+    else if (tab === 'files') loadFiles();
+    else if (tab === 'licenses') loadLicenses();
+  });
+});
+
+// ============ 授权 (Licenses) ============
+let licCache = [];
+const licTbody = $('#lic-tbody');
+const licSearch = $('#lic-search');
+
+function renderLicenses() {
+  const q = licSearch.value.trim().toLowerCase();
   const filtered = q
-    ? cache.filter(l => l.machine_code.toLowerCase().includes(q) || (l.note || '').toLowerCase().includes(q))
-    : cache;
+    ? licCache.filter(l => l.machine_code.toLowerCase().includes(q) || (l.note || '').toLowerCase().includes(q))
+    : licCache;
 
   if (filtered.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6" class="empty">${q ? '没有匹配的授权' : '还没有授权，用上面的表单添加'}</td></tr>`;
+    licTbody.innerHTML = `<tr><td colspan="6" class="empty">${q ? '没有匹配' : '还没有授权,用上面表单添加'}</td></tr>`;
   } else {
-    tbody.innerHTML = filtered.map(l => {
-      const st = status(l.expire_at);
+    licTbody.innerHTML = filtered.map(l => {
+      const st = licStatus(l.expire_at);
+      const code = escapeHtml(l.machine_code);
       return `
         <tr>
-          <td class="mono">${escapeHtml(l.machine_code)}</td>
+          <td class="mono">${code}</td>
           <td>${fmtTime(l.expire_at)}</td>
           <td><span class="pill ${st.cls}">${st.text}</span></td>
-          <td>${escapeHtml(l.note || '')}</td>
+          <td>${escapeHtml(l.note)}</td>
           <td class="muted">${fmtTime(l.updated_at)}</td>
           <td style="text-align:right;">
-            <button class="ghost" data-act="edit" data-code="${escapeAttr(l.machine_code)}" data-note="${escapeAttr(l.note || '')}">续期</button>
-            <button class="danger" data-act="del" data-code="${escapeAttr(l.machine_code)}">删除</button>
+            <div class="actions">
+              <button class="ghost mini" data-act="adjust" data-code="${code}" data-delta="7">+7d</button>
+              <button class="ghost mini" data-act="adjust" data-code="${code}" data-delta="30">+30d</button>
+              <button class="ghost mini" data-act="adjust" data-code="${code}" data-delta="365">+1y</button>
+              <button class="warn mini"  data-act="adjust" data-code="${code}" data-delta="-7">-7d</button>
+              <button class="ghost mini" data-act="custom" data-code="${code}">±</button>
+              <button class="ghost mini" data-act="renew"  data-code="${code}" data-note="${escapeHtml(l.note)}">续期</button>
+              <button class="danger mini" data-act="del"   data-code="${code}">删除</button>
+            </div>
           </td>
         </tr>`;
     }).join('');
   }
-
-  // Stats
+  updateLicStats();
+}
+function updateLicStats() {
   const now = Math.floor(Date.now() / 1000);
-  $('#stat-total').textContent = cache.length;
-  $('#stat-valid').textContent = cache.filter(l => l.expire_at > now && daysLeft(l.expire_at) >= 7).length;
-  $('#stat-warn').textContent = cache.filter(l => l.expire_at > now && daysLeft(l.expire_at) < 7).length;
-  $('#stat-expired').textContent = cache.filter(l => l.expire_at <= now).length;
+  const valid   = licCache.filter(l => l.expire_at > now && daysLeft(l.expire_at) >= 7).length;
+  const warn    = licCache.filter(l => l.expire_at > now && daysLeft(l.expire_at) < 7).length;
+  const expired = licCache.filter(l => l.expire_at <= now).length;
+  $('#stat-lic-valid').textContent   = valid;
+  $('#stat-lic-warn').textContent    = warn;
+  $('#stat-lic-expired').textContent = expired;
+  $('#stat-lic-total').textContent   = licCache.length;
+  $('#tab-count-licenses').textContent = licCache.length;
 }
-
-function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
-}
-function escapeAttr(s) { return escapeHtml(s); }
-
-async function load() {
+async function loadLicenses() {
   try {
     const data = await api('GET', 'api/licenses');
-    cache = data.licenses || [];
-    render();
+    licCache = data.licenses || [];
+    renderLicenses();
   } catch (e) {
-    toast('加载失败: ' + e.message, false);
+    toast('加载授权失败: ' + e.message, false);
   }
 }
 
-// 事件绑定
-$('#upsert-form').addEventListener('submit', async (e) => {
+$('#lic-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const body = {
-    machine_code: $('#in-code').value.trim(),
-    days: parseInt($('#in-days').value, 10),
-    note: $('#in-note').value.trim(),
+    machine_code: $('#lic-code').value.trim(),
+    days: parseInt($('#lic-days').value, 10),
+    note: $('#lic-note').value.trim(),
   };
   if (!body.machine_code || !body.days) return;
   try {
     await api('POST', 'api/licenses', body);
     toast(`已保存 ${body.machine_code}`);
-    $('#in-code').value = '';
-    $('#in-note').value = '';
-    await load();
-  } catch (e) {
-    toast('保存失败: ' + e.message, false);
-  }
+    $('#lic-code').value = ''; $('#lic-note').value = '';
+    await loadLicenses();
+  } catch (e) { toast('保存失败: ' + e.message, false); }
 });
 
-tbody.addEventListener('click', async (e) => {
+licTbody.addEventListener('click', async (e) => {
   const btn = e.target.closest('button');
   if (!btn) return;
-  const act = btn.dataset.act;
-  const code = btn.dataset.code;
-  if (act === 'del') {
-    if (!confirm(`确认删除授权 "${code}"?\n此操作不可撤销。`)) return;
+  const act = btn.dataset.act, code = btn.dataset.code;
+  if (act === 'adjust') {
+    const delta = parseInt(btn.dataset.delta, 10);
+    const label = delta > 0 ? `延长 ${delta} 天` : `缩短 ${-delta} 天`;
+    if (delta < 0 && !confirm(`确认给 ${code} ${label}?`)) return;
+    try {
+      const r = await api('POST', 'api/licenses/adjust', { machine_code: code, delta_days: delta });
+      toast(`${code} ${label},新到期 ${fmtTime(r.expire_at)}`);
+      await loadLicenses();
+    } catch (e) { toast('调整失败: ' + e.message, false); }
+  } else if (act === 'custom') {
+    const input = prompt(`调整 ${code} 的时长\n输入正数=延长,负数=缩短 (单位:天)`);
+    if (input === null) return;
+    const delta = parseInt(input, 10);
+    if (!Number.isFinite(delta) || delta === 0) { toast('输入无效', false); return; }
+    try {
+      const r = await api('POST', 'api/licenses/adjust', { machine_code: code, delta_days: delta });
+      toast(`调整成功,新到期 ${fmtTime(r.expire_at)}`);
+      await loadLicenses();
+    } catch (e) { toast('调整失败: ' + e.message, false); }
+  } else if (act === 'renew') {
+    $('#lic-code').value = code;
+    $('#lic-note').value = btn.dataset.note || '';
+    $('#lic-days').focus();
+    $('#lic-days').select();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  } else if (act === 'del') {
+    if (!confirm(`确认删除授权 "${code}"?`)) return;
     try {
       await api('DELETE', 'api/licenses/' + encodeURIComponent(code));
       toast(`已删除 ${code}`);
-      await load();
+      await loadLicenses();
     } catch (e) { toast('删除失败: ' + e.message, false); }
-  } else if (act === 'edit') {
-    $('#in-code').value = code;
-    $('#in-note').value = btn.dataset.note || '';
-    $('#in-days').value = 365;
-    $('#in-days').focus();
-    $('#in-days').select();
   }
 });
+licSearch.addEventListener('input', renderLicenses);
+$('#lic-refresh').addEventListener('click', loadLicenses);
 
-search.addEventListener('input', render);
-$('#btn-refresh').addEventListener('click', load);
+// ============ 文件 (Files) ============
+let fileCache = [];
+const fileTbody = $('#file-tbody');
+const fileSearch = $('#file-search');
+const dropzone = $('#dropzone');
+const fileInput = $('#file-input');
+const uploadBtn = $('#file-upload-btn');
+const dropzoneHint = $('#dropzone-hint');
+let pendingFile = null;
 
-load();
+function renderFiles() {
+  const q = fileSearch.value.trim().toLowerCase();
+  const filtered = q
+    ? fileCache.filter(f => f.filename.toLowerCase().includes(q) || f.md5.toLowerCase().includes(q) || (f.note || '').toLowerCase().includes(q))
+    : fileCache;
+
+  if (filtered.length === 0) {
+    fileTbody.innerHTML = `<tr><td colspan="7" class="empty">${q ? '没有匹配' : '还没有文件,拖拽上传'}</td></tr>`;
+  } else {
+    fileTbody.innerHTML = filtered.map(f => {
+      const name = escapeHtml(f.filename);
+      const md5 = f.md5;
+      return `
+        <tr>
+          <td class="mono">${name}</td>
+          <td>${fmtSize(f.size)}</td>
+          <td>
+            <div class="md5-cell">
+              <span class="md5-short" title="${md5}">${md5.slice(0, 12)}…</span>
+              <button class="ghost mini" data-act="copy" data-md5="${md5}">复制</button>
+            </div>
+          </td>
+          <td>${fmtTime(f.uploaded_at)}</td>
+          <td>${escapeHtml(f.uploaded_by)}</td>
+          <td>${escapeHtml(f.note)}</td>
+          <td style="text-align:right;">
+            <div class="actions">
+              <a href="api/files/download/${encodeURIComponent(f.filename)}" class="ghost mini" style="text-decoration:none; padding:4px 10px;">下载</a>
+              <button class="danger mini" data-act="del" data-name="${name}">删除</button>
+            </div>
+          </td>
+        </tr>`;
+    }).join('');
+  }
+  const totalSize = fileCache.reduce((s, f) => s + f.size, 0);
+  $('#stat-file-size').textContent = fmtSize(totalSize);
+  $('#stat-file-total').textContent = fileCache.length;
+  $('#tab-count-files').textContent = fileCache.length;
+}
+async function loadFiles() {
+  try {
+    const data = await api('GET', 'api/files');
+    fileCache = data.files || [];
+    renderFiles();
+  } catch (e) { toast('加载文件失败: ' + e.message, false); }
+}
+
+// 上传逻辑 (XHR 支持进度)
+function pickFile(f) {
+  pendingFile = f;
+  dropzoneHint.innerHTML = f
+    ? `<span class="picked">${escapeHtml(f.name)}</span> · ${fmtSize(f.size)} · 点击"上传"开始`
+    : `拖拽文件到此处，或 <b>点击选择</b> (单个 &le; 500MB)`;
+  uploadBtn.disabled = !f;
+}
+dropzone.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', () => pickFile(fileInput.files[0] || null));
+['dragenter','dragover'].forEach(ev => dropzone.addEventListener(ev, e => { e.preventDefault(); dropzone.classList.add('drag'); }));
+['dragleave','drop'].forEach(ev => dropzone.addEventListener(ev, e => { e.preventDefault(); dropzone.classList.remove('drag'); }));
+dropzone.addEventListener('drop', e => {
+  const f = e.dataTransfer.files[0];
+  if (f) pickFile(f);
+});
+
+uploadBtn.addEventListener('click', () => {
+  if (!pendingFile) return;
+  const fd = new FormData();
+  fd.append('file', pendingFile);
+  fd.append('note', $('#file-note').value.trim());
+
+  const xhr = new XMLHttpRequest();
+  const progressBox = $('#file-progress');
+  const bar = progressBox.querySelector('.bar');
+  progressBox.style.display = 'block';
+  bar.style.width = '0%';
+  uploadBtn.disabled = true;
+
+  xhr.upload.addEventListener('progress', e => {
+    if (e.lengthComputable) bar.style.width = (e.loaded / e.total * 100).toFixed(0) + '%';
+  });
+  xhr.addEventListener('load', () => {
+    progressBox.style.display = 'none';
+    uploadBtn.disabled = false;
+    if (xhr.status >= 200 && xhr.status < 300) {
+      const r = JSON.parse(xhr.responseText);
+      toast(`上传成功 ${r.file.filename} MD5:${r.file.md5.slice(0,8)}`);
+      pickFile(null);
+      $('#file-note').value = '';
+      loadFiles();
+    } else {
+      try { toast('上传失败: ' + JSON.parse(xhr.responseText).error, false); }
+      catch { toast('上传失败: HTTP ' + xhr.status, false); }
+    }
+  });
+  xhr.addEventListener('error', () => {
+    progressBox.style.display = 'none';
+    uploadBtn.disabled = false;
+    toast('网络错误', false);
+  });
+  xhr.open('POST', 'api/files/upload');
+  xhr.send(fd);
+});
+
+fileTbody.addEventListener('click', async (e) => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  const act = btn.dataset.act;
+  if (act === 'copy') {
+    try {
+      await navigator.clipboard.writeText(btn.dataset.md5);
+      toast('MD5 已复制');
+    } catch { toast('复制失败,浏览器需要 HTTPS 环境', false); }
+  } else if (act === 'del') {
+    const name = btn.dataset.name;
+    if (!confirm(`确认删除文件 "${name}"?\n磁盘和数据库都会删除,不可撤销。`)) return;
+    try {
+      await api('DELETE', 'api/files/' + encodeURIComponent(name));
+      toast(`已删除 ${name}`);
+      await loadFiles();
+    } catch (e) { toast('删除失败: ' + e.message, false); }
+  }
+});
+fileSearch.addEventListener('input', renderFiles);
+$('#file-refresh').addEventListener('click', loadFiles);
+
+// ============ 审计日志 (Audit) ============
+let auditCache = [];
+const auditTbody = $('#audit-tbody');
+
+function renderAudit() {
+  if (auditCache.length === 0) {
+    auditTbody.innerHTML = `<tr><td colspan="6" class="empty">还没有日志</td></tr>`;
+    $('#stat-audit-total').textContent = 0;
+    return;
+  }
+  auditTbody.innerHTML = auditCache.map(e => {
+    const catCls = e.category === 'license' ? 'info' : 'muted';
+    const actCls = 'action-color-' + e.action;
+    return `
+      <tr>
+        <td class="muted">${fmtTime(e.ts)}</td>
+        <td>${escapeHtml(e.actor)}</td>
+        <td><span class="pill ${catCls}">${escapeHtml(e.category)}</span></td>
+        <td class="${actCls}"><b>${escapeHtml(e.action)}</b></td>
+        <td class="mono">${escapeHtml(e.target)}</td>
+        <td class="details" title="点击展开">${escapeHtml(e.details)}</td>
+      </tr>`;
+  }).join('');
+  $('#stat-audit-total').textContent = auditCache.length;
+}
+async function loadAudit() {
+  const params = new URLSearchParams();
+  if ($('#audit-cat').value) params.set('category', $('#audit-cat').value);
+  if ($('#audit-target').value) params.set('target', $('#audit-target').value.trim());
+  try {
+    const data = await api('GET', 'api/audit?' + params.toString());
+    auditCache = data.entries || [];
+    renderAudit();
+  } catch (e) { toast('加载日志失败: ' + e.message, false); }
+}
+auditTbody.addEventListener('click', e => {
+  const td = e.target.closest('td.details');
+  if (td) td.classList.toggle('expanded');
+});
+$('#audit-cat').addEventListener('change', loadAudit);
+$('#audit-target').addEventListener('input', () => {
+  clearTimeout(loadAudit._t);
+  loadAudit._t = setTimeout(loadAudit, 300);
+});
+$('#audit-refresh').addEventListener('click', loadAudit);
+
+// ============ 启动 ============
+loadLicenses();
+loadFiles();  // 预加载让 tab count 正确
 </script>
 </body>
 </html>

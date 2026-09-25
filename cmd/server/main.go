@@ -40,20 +40,24 @@ func main() {
 		slog.Error("migrate db", "err", err)
 		os.Exit(1)
 	}
-	repo := storage.NewLicenseRepo(db)
+	licenseRepo := storage.NewLicenseRepo(db)
+	fileRepo := storage.NewFileRepo(db)
+	auditRepo := storage.NewAuditRepo(db)
 
 	if cfg.Server.Mode == "release" {
 		gin.SetMode(gin.ReleaseMode)
 	}
 	r := gin.New()
 	r.Use(gin.Recovery(), handler.Logger())
+	r.MaxMultipartMemory = 8 << 20 // 8MB in memory, rest spills to temp file
 
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok", "time": time.Now().Unix()})
 	})
-	handler.RegisterAuth(r, cfg, repo)
-	handler.RegisterDownload(r, cfg, repo)
-	handler.RegisterAdmin(r, cfg, repo)
+	handler.RegisterAuth(r, cfg, licenseRepo)
+	handler.RegisterDownload(r, cfg, licenseRepo)
+	handler.RegisterUpdates(r, cfg, licenseRepo, fileRepo)
+	handler.RegisterAdmin(r, cfg, licenseRepo, fileRepo, auditRepo)
 
 	srv := &http.Server{
 		Addr:              cfg.Server.Addr,
