@@ -32,7 +32,11 @@ if ! command -v /usr/local/go/bin/go &>/dev/null; then
     echo 'export PATH=$PATH:/usr/local/go/bin' > /etc/profile.d/go.sh
 fi
 export PATH=$PATH:/usr/local/go/bin
+# 国内服务器走 goproxy.cn，绕开 proxy.golang.org 超时
+export GOPROXY="https://goproxy.cn,direct"
+export GOSUMDB="sum.golang.google.cn"
 log "Go 版本: $(go version)"
+log "GOPROXY: $GOPROXY"
 
 # ---------- 拉代码 ----------
 if [ -d "$SRC_DIR/.git" ]; then

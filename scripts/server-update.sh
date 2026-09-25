@@ -13,6 +13,8 @@ set -euo pipefail
 SRC_DIR="${SRC_DIR:-/opt/epsilon-src}"
 APP_DIR="${APP_DIR:-/opt/epsilon}"
 export PATH=$PATH:/usr/local/go/bin
+export GOPROXY="https://goproxy.cn,direct"
+export GOSUMDB="sum.golang.google.cn"
 
 log() { echo "==> $*"; }
 
