@@ -163,6 +163,102 @@
   .action-color-replace, .action-color-extend  { color: var(--accent); }
   .action-color-reduce  { color: var(--warn); }
   .action-color-delete  { color: var(--err); }
+
+  /* --- 响应式基础: 表格横滑容器 --- */
+  .table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    /* 让内部 table 至少能塞下最小内容, 超出就出现横滚 */
+  }
+  .table-wrap table { min-width: 640px; }
+
+  /* ========== 平板 (< 900px) ========== */
+  @media (max-width: 900px) {
+    body { padding: 16px; }
+    header { flex-wrap: wrap; gap: 8px; }
+    .stats { font-size: 12px; gap: 10px; }
+    h1 { font-size: 18px; }
+
+    /* 表单从 4 列变 2 列 */
+    .form-row { grid-template-columns: 1fr 1fr; }
+    .form-row button[type="submit"] { grid-column: 1 / -1; width: 100%; }
+
+    /* 工具栏项换行 */
+    .toolbar { flex-wrap: wrap; }
+    .toolbar .search { max-width: 100%; flex: 1 1 200px; }
+    .toolbar .grow { display: none; }
+
+    /* 卡片内边距略小 */
+    .card { padding: 16px; }
+
+    /* Tab 允许横滑 */
+    .tabs { overflow-x: auto; }
+    .tab-btn { white-space: nowrap; }
+  }
+
+  /* ========== 手机 (< 640px) ========== */
+  @media (max-width: 640px) {
+    body { padding: 10px; font-size: 14px; }
+    header { padding-bottom: 12px; margin-bottom: 12px; }
+    h1 { font-size: 16px; }
+    h1 .dot { display: inline-block; }
+    .stats { width: 100%; justify-content: space-between; gap: 6px; }
+    .stats span { font-size: 11px; }
+
+    /* 表单强制单列 */
+    .form-row { grid-template-columns: 1fr; gap: 10px; }
+
+    /* Tab 按钮更紧凑 */
+    .tab-btn { padding: 10px 14px; font-size: 13px; }
+    .tab-btn .count { font-size: 10px; padding: 1px 5px; }
+
+    /* 卡片瘦身 */
+    .card { padding: 14px; margin-bottom: 14px; border-radius: 6px; }
+    .card h2 { font-size: 12px; margin-bottom: 12px; }
+
+    /* 表格瘦身: 更紧的 padding, 更小的字, 允许横滑 */
+    .table-wrap table { min-width: 100%; }
+    th, td { padding: 8px 6px; font-size: 12px; }
+    th { font-size: 10px; }
+
+    /* 隐藏次要列 (TH + TD 都要隐藏, 靠标记类和 nth-child) */
+    .col-hide-sm { display: none; }
+    /* 授权表: 第 4 列(备注) 第 5 列(更新) 隐藏 */
+    #lic-tbody tr td:nth-child(4),
+    #lic-tbody tr td:nth-child(5) { display: none; }
+    /* 文件表: 第 3 列(MD5) 第 5 列(上传者) 第 6 列(备注) 隐藏 */
+    #file-tbody tr td:nth-child(3),
+    #file-tbody tr td:nth-child(5),
+    #file-tbody tr td:nth-child(6) { display: none; }
+    /* 日志表: 第 2 列(操作人) 第 6 列(详情) 隐藏 (详情通过展开查看) */
+    #audit-tbody tr td:nth-child(2),
+    #audit-tbody tr td:nth-child(6) { display: none; }
+    /* 空态行的 colspan 单元格保留 (只有一个 td, 上面 nth-child 不匹配) */
+
+    /* 操作按钮组允许换行, 按钮加大易点 */
+    .actions { gap: 4px; }
+    button.mini { padding: 5px 8px; font-size: 11px; min-height: 28px; }
+    /* iOS 上 44px 是舒服的点击目标, 但表格里塞不下, 折中 28px */
+
+    /* 拖拽区: 手机没有拖拽, 简化说明 */
+    .dropzone { padding: 20px 12px; }
+    .dropzone p { font-size: 13px; }
+
+    /* 详情单元格允许换行 */
+    .details { font-size: 10px; max-width: 100%; }
+
+    /* toast 顶到底部一点 */
+    #toast { bottom: 12px; right: 12px; left: 12px; text-align: center; }
+  }
+
+  /* ========== 更小的屏幕 (< 380px, 小屏手机) ========== */
+  @media (max-width: 380px) {
+    body { padding: 8px; }
+    .card { padding: 10px; }
+    h1 { font-size: 15px; }
+    .stats span { font-size: 10px; }
+    .tab-btn { padding: 8px 10px; font-size: 12px; }
+  }
 </style>
 </head>
 <body>
@@ -216,14 +312,15 @@
         <input class="search" id="lic-search" type="text" placeholder="搜索机器码 / 备注...">
         <button class="ghost" id="lic-refresh">刷新</button>
       </div>
+      <div class="table-wrap">
       <table>
         <thead>
           <tr>
             <th>机器码</th>
             <th>到期时间</th>
             <th>状态</th>
-            <th>备注</th>
-            <th>更新</th>
+            <th class="col-hide-sm">备注</th>
+            <th class="col-hide-sm">更新</th>
             <th style="text-align:right;">操作</th>
           </tr>
         </thead>
@@ -231,6 +328,7 @@
           <tr><td colspan="6" class="empty">加载中...</td></tr>
         </tbody>
       </table>
+      </div>
     </div>
   </div>
 
@@ -263,15 +361,16 @@
         <input class="search" id="file-search" type="text" placeholder="搜索文件名 / MD5...">
         <button class="ghost" id="file-refresh">刷新</button>
       </div>
+      <div class="table-wrap">
       <table>
         <thead>
           <tr>
             <th>文件名</th>
             <th>大小</th>
-            <th>MD5</th>
+            <th class="col-hide-sm">MD5</th>
             <th>上传时间</th>
-            <th>上传者</th>
-            <th>备注</th>
+            <th class="col-hide-sm">上传者</th>
+            <th class="col-hide-sm">备注</th>
             <th style="text-align:right;">操作</th>
           </tr>
         </thead>
@@ -279,6 +378,7 @@
           <tr><td colspan="7" class="empty">加载中...</td></tr>
         </tbody>
       </table>
+      </div>
     </div>
   </div>
 
@@ -296,21 +396,23 @@
         <input class="search" id="audit-target" type="text" placeholder="按对象名过滤...">
         <button class="ghost" id="audit-refresh">刷新</button>
       </div>
+      <div class="table-wrap">
       <table>
         <thead>
           <tr>
             <th style="width: 150px;">时间</th>
-            <th style="width: 90px;">操作人</th>
+            <th style="width: 90px;" class="col-hide-sm">操作人</th>
             <th style="width: 70px;">类别</th>
             <th style="width: 90px;">动作</th>
             <th>对象</th>
-            <th>详情</th>
+            <th class="col-hide-sm">详情</th>
           </tr>
         </thead>
         <tbody id="audit-tbody">
           <tr><td colspan="6" class="empty">加载中...</td></tr>
         </tbody>
       </table>
+      </div>
     </div>
   </div>
 </div>
