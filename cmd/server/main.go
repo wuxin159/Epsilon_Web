@@ -53,6 +53,7 @@ func main() {
 	})
 	handler.RegisterAuth(r, cfg, repo)
 	handler.RegisterDownload(r, cfg, repo)
+	handler.RegisterAdmin(r, cfg, repo)
 
 	srv := &http.Server{
 		Addr:              cfg.Server.Addr,

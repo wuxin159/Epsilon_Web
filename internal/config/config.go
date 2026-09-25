@@ -12,6 +12,12 @@ type Config struct {
 	Database DatabaseConfig `yaml:"database"`
 	Auth     AuthConfig     `yaml:"auth"`
 	Download DownloadConfig `yaml:"download"`
+	Admin    AdminConfig    `yaml:"admin"`
+}
+
+type AdminConfig struct {
+	Username string `yaml:"username"`
+	Password string `yaml:"password"`
 }
 
 type ServerConfig struct {

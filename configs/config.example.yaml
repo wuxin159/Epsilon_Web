@@ -13,3 +13,9 @@ auth:
 
 download:
   root_dir: "./data/downloads"
+
+# 授权管理页面 http(s)://host/admin/ 的 Basic Auth 账号
+# 留空则关闭管理页面
+admin:
+  username: "admin"
+  password: "CHANGE_ME_STRONG_PASSWORD"
