@@ -499,6 +499,8 @@ function fileDownloadURL(file) {
 $$('.tab-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     const tab = btn.dataset.tab;
+    // Keep the selected tab when a successful server update reloads the page.
+    history.replaceState(null, '', '#' + tab);
     $$('.tab-btn').forEach(b => b.classList.toggle('active', b === btn));
     $$('.tab-panel').forEach(p => p.classList.toggle('active', p.id === 'tab-' + tab));
     if (tab === 'audit') loadAudit();
@@ -871,9 +873,9 @@ async function pollForNewCommit(oldCommit) {
           commitEl.textContent = h.commit;
           updateBtn.disabled = false;
           updateBtn.textContent = '↻ 更新';
-          // 数据可能有变, 刷一遍
-          loadLicenses(); loadFiles();
-          if ($('#tab-audit').classList.contains('active')) loadAudit();
+          // The HTML and scripts are embedded in the server binary. Reload the
+          // whole page so new controls appear instead of running the old script.
+          window.location.reload();
           return;
         }
       }
@@ -884,6 +886,13 @@ async function pollForNewCommit(oldCommit) {
 }
 
 // ============ 启动 ============
+const initialTab = window.location.hash.slice(1);
+const initialButton = $$('.tab-btn').find(b => b.dataset.tab === initialTab);
+if (initialButton) {
+  $$('.tab-btn').forEach(b => b.classList.toggle('active', b === initialButton));
+  $$('.tab-panel').forEach(p => p.classList.toggle('active', p.id === 'tab-' + initialTab));
+  if (initialTab === 'audit') loadAudit();
+}
 loadVersion();
 loadLicenses();
 loadFiles();  // 预加载让 tab count 正确

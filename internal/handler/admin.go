@@ -40,6 +40,7 @@ func RegisterAdmin(r *gin.Engine, cfg *config.Config,
 	// 页面入口
 	group.GET("", func(c *gin.Context) { c.Redirect(http.StatusFound, "/admin/") })
 	group.GET("/", func(c *gin.Context) {
+		c.Header("Cache-Control", "no-store")
 		c.Data(http.StatusOK, "text/html; charset=utf-8", adminPageHTML)
 	})
 
