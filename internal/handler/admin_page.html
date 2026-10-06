@@ -341,7 +341,7 @@
     <div class="card">
       <h2>上传文件 (拖拽 或 点击选择, 相同文件名会覆盖)</h2>
       <div class="dropzone" id="dropzone">
-        <p id="dropzone-hint">拖拽文件到此处，或 <b>点击选择</b> (单个 &le; 500MB)</p>
+        <p id="dropzone-hint">拖拽文件到此处，或 <b>点击选择</b> (单个 &le; 500 MiB)</p>
         <input type="file" id="file-input" hidden>
       </div>
       <div style="display: grid; grid-template-columns: 3fr 1fr; gap: 12px; margin-top: 12px;">
@@ -472,6 +472,27 @@ async function api(method, path, body) {
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
   return data;
+}
+
+async function copyText(text) {
+  if (navigator.clipboard && window.isSecureContext) {
+    try { await navigator.clipboard.writeText(text); return true; } catch { /* try fallback */ }
+  }
+  const el = document.createElement('textarea');
+  el.value = text;
+  el.style.cssText = 'position:fixed;left:-9999px;top:0;';
+  document.body.appendChild(el);
+  el.select();
+  let copied;
+  try { copied = document.execCommand('copy'); }
+  catch { copied = false; }
+  finally { el.remove(); }
+  if (!copied) window.prompt('请复制以下内容', text);
+  return copied;
+}
+
+function fileDownloadURL(file) {
+  return new URL(file.download_url || file.download_path, window.location.href).href;
 }
 
 // ============ Tab 切换 ============
@@ -642,6 +663,7 @@ function renderFiles() {
           <td style="text-align:right;">
             <div class="actions">
               <a href="api/files/download/${encodeURIComponent(f.filename)}" class="ghost mini" style="text-decoration:none; padding:4px 10px;">下载</a>
+              <button class="ghost mini" data-act="link" data-name="${name}">复制直链</button>
               <button class="danger mini" data-act="del" data-name="${name}">删除</button>
             </div>
           </td>
@@ -663,10 +685,14 @@ async function loadFiles() {
 
 // 上传逻辑 (XHR 支持进度)
 function pickFile(f) {
+  if (f && f.size > 500 * 1024 * 1024) {
+    toast('文件不能超过 500 MiB', false);
+    return;
+  }
   pendingFile = f;
   dropzoneHint.innerHTML = f
     ? `<span class="picked">${escapeHtml(f.name)}</span> · ${fmtSize(f.size)} · 点击"上传"开始`
-    : `拖拽文件到此处，或 <b>点击选择</b> (单个 &le; 500MB)`;
+    : `拖拽文件到此处，或 <b>点击选择</b> (单个 &le; 500 MiB)`;
   uploadBtn.disabled = !f;
 }
 dropzone.addEventListener('click', () => fileInput.click());
@@ -723,9 +749,13 @@ fileTbody.addEventListener('click', async (e) => {
   const act = btn.dataset.act;
   if (act === 'copy') {
     try {
-      await navigator.clipboard.writeText(btn.dataset.md5);
-      toast('MD5 已复制');
-    } catch { toast('复制失败,浏览器需要 HTTPS 环境', false); }
+      toast(await copyText(btn.dataset.md5) ? 'MD5 已复制' : '请在弹窗中手动复制 MD5');
+    } catch { toast('复制失败', false); }
+  } else if (act === 'link') {
+    const file = fileCache.find(f => f.filename === btn.dataset.name);
+    if (!file || (!file.download_url && !file.download_path)) { toast('该文件暂时没有直链，请刷新', false); return; }
+    try { toast(await copyText(fileDownloadURL(file)) ? '下载直链已复制' : '请在弹窗中手动复制直链'); }
+    catch { toast('复制直链失败', false); }
   } else if (act === 'del') {
     const name = btn.dataset.name;
     if (!confirm(`确认删除文件 "${name}"?\n磁盘和数据库都会删除,不可撤销。`)) return;

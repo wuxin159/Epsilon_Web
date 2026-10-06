@@ -1,7 +1,9 @@
 package storage
 
 import (
+	"crypto/rand"
 	"database/sql"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -27,8 +29,80 @@ func Open(path string) (*sql.DB, error) {
 }
 
 func Migrate(db *sql.DB) error {
-	_, err := db.Exec(schema)
-	return err
+	if _, err := db.Exec(schema); err != nil {
+		return err
+	}
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	rows, err := tx.Query(`PRAGMA table_info(files)`)
+	if err != nil {
+		return err
+	}
+	columns := make(map[string]bool)
+	for rows.Next() {
+		var cid, notNull, pk int
+		var name, kind string
+		var defaultValue any
+		if err := rows.Scan(&cid, &name, &kind, &notNull, &defaultValue, &pk); err != nil {
+			rows.Close()
+			return err
+		}
+		columns[name] = true
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return err
+	}
+	rows.Close()
+	for _, name := range []string{"storage_name", "download_token"} {
+		if !columns[name] {
+			if _, err := tx.Exec("ALTER TABLE files ADD COLUMN " + name + " TEXT NOT NULL DEFAULT ''"); err != nil {
+				return err
+			}
+		}
+	}
+	rows, err = tx.Query(`SELECT id FROM files WHERE download_token = ''`)
+	if err != nil {
+		return err
+	}
+	var ids []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			rows.Close()
+			return err
+		}
+		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return err
+	}
+	rows.Close()
+	for _, id := range ids {
+		token, err := newDownloadToken()
+		if err != nil {
+			return err
+		}
+		if _, err := tx.Exec(`UPDATE files SET download_token = ? WHERE id = ?`, token, id); err != nil {
+			return err
+		}
+	}
+	if _, err := tx.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_files_download_token ON files(download_token)`); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func newDownloadToken() (string, error) {
+	var data [32]byte
+	if _, err := rand.Read(data[:]); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(data[:]), nil
 }
 
 const schema = `

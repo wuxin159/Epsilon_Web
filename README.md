@@ -10,7 +10,7 @@
 ## 功能
 
 - **授权管理**：机器码 + 到期时间；支持覆盖式续期、`±N 天`调整
-- **文件分发**：管理端上传（带 MD5），客户端签名后下载
+- **文件分发**：管理端上传（带 MD5），生成可复制的随机直链，App 持有链接即可下载；同时支持原有签名下载
 - **云更新协议**：客户端拉取文件清单，比对本地 MD5 增量下载
 - **Web 管理面板**：Basic Auth 保护，三 Tab（授权 / 文件 / 日志）
 - **CLI 工具**：批量脚本或 SSH 里操作授权
@@ -30,6 +30,7 @@ Epsilon/
 │   ├── handler/
 │   │   ├── auth.go             # POST /api/v1/auth/check
 │   │   ├── download.go         # GET  /api/v1/download/:file
+│   │   ├── file_download.go    # GET/HEAD /files/:token/:name (文件直链)
 │   │   ├── updates.go          # GET  /api/v1/updates (客户端拉清单)
 │   │   ├── admin.go            # /admin/* BasicAuth 入口
 │   │   ├── admin_licenses.go   # 授权 CRUD + 调整时长
@@ -53,7 +54,7 @@ Epsilon/
 │   └── deploy.sh         # 本地一键部署 (push + 触发 update)
 ├── data/                 # SQLite + 上传文件 (gitignored)
 │   ├── epsilon.db
-│   └── downloads/        # 上传的文件真身
+│   └── downloads/        # 上传的文件版本；原始文件名保存在数据库
 └── .deploy.env           # 本地部署配置 (gitignored, 含服务器 IP)
 ```
 
@@ -168,6 +169,39 @@ func sign(secret, machineCode string, ts int64) string {
 
 ---
 
+## 文件上传与 App 直链下载
+
+1. 管理员进入 `/admin/` 的“文件管理”，上传文件（单个最多 **500 MiB**）。
+2. 上传完成后点击该文件的“复制直链”。
+3. App 直接向链接发起 `GET`，无需机器码、时间戳、签名或管理员账号。支持 `HEAD`、`Range` 断点续传和 ETag 条件请求。
+
+链接格式：
+
+```text
+https://your-server/files/<随机 token>/<文件名>
+```
+
+**持有链接的人都能下载该文件。** Token 随机生成，没有公开文件列表。后台上传、列表和删除仍需 Basic Auth。
+
+- 同名覆盖时链接保持不变，后续请求下载新版本；已经开始的下载继续读取打开的旧版本。
+- 删除文件会使原链接失效。删除后重新上传同名文件会生成新链接。
+- 原有数据库会自动补充链接字段，旧文件无需重新上传。
+- 上传响应和管理员列表包含 `download_path`。后台根据当前浏览器地址生成完整链接；如后台通过内网访问，可在配置中指定 App 使用的公网地址：
+
+```yaml
+download:
+  root_dir: "./data/downloads"
+  base_url: "https://files.example.com"
+```
+
+设置 `base_url` 后，API 还会返回完整的 `download_url`。它不影响服务监听地址。
+
+若通过已有 Nginx 部署，需同步更新 `deploy/nginx.conf` 的上传 location；更新 Go 二进制不会自动更新已安装的 Nginx 配置。该 location 允许 **501 MiB 请求体**，为 500 MiB 文件预留表单开销；普通接口继续使用较小的请求限制。
+
+文件内容先写入独立版本，成功后更新数据库引用。同名并发上传和数据库写入失败不会截断原文件。数据库及整个下载目录需一起备份，上传后的磁盘文件名属于内部存储信息。
+
+---
+
 ## 客户端云更新流程
 
 ```
@@ -255,10 +289,11 @@ curl -fsSL https://raw.githubusercontent.com/wuxin159/Epsilon_Web/main/scripts/s
 
 ### Tab 2 · 文件管理
 
-- **拖拽/点击上传**：单个 ≤ 500MB，同名覆盖并记日志
+- **拖拽/点击上传**：单个 ≤ 500 MiB，同名覆盖并记日志
 - **列表**：文件名 / 大小 / MD5 / 上传时间 / 上传者 / 备注
-- **MD5 一键复制**（需要 HTTPS 环境浏览器才允许剪贴板）
+- **MD5 一键复制**（HTTP 环境也提供复制回退）
 - **下载**（管理员直接下载，不走签名）
+- **复制直链**：App 持有链接即可下载；HTTP 环境也提供复制回退
 - **删除**（磁盘 + 数据库同时清）
 
 ### Tab 3 · 操作日志

@@ -60,7 +60,7 @@ server {
     access_log /var/log/nginx/epsilon-access.log;
     error_log  /var/log/nginx/epsilon-error.log;
 
-    # 上传文件大小限制 (下载/授权接口用不到大 body, 保守设小点)
+    # 普通接口保持较小请求限制；文件上传单独允许 500 MiB + 表单信息。
     client_max_body_size 4m;
 
     location / {
@@ -72,6 +72,20 @@ server {
         proxy_set_header   X-Forwarded-Proto $scheme;
         proxy_read_timeout 60s;
         proxy_send_timeout 60s;
+    }
+
+    location = /admin/api/files/upload {
+        client_max_body_size 501m;
+        client_body_timeout 300s;
+        proxy_request_buffering off;
+        proxy_pass http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 300s;
+        proxy_send_timeout 300s;
     }
 
     location = /health {

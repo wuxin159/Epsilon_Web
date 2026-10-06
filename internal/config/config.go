@@ -2,7 +2,9 @@ package config
 
 import (
 	"fmt"
+	"net/url"
 	"os"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -36,6 +38,7 @@ type AuthConfig struct {
 
 type DownloadConfig struct {
 	RootDir string `yaml:"root_dir"`
+	BaseURL string `yaml:"base_url"`
 }
 
 func Load(path string) (*Config, error) {
@@ -55,6 +58,13 @@ func Load(path string) (*Config, error) {
 	}
 	if c.Auth.Secret == "" || c.Auth.Secret == "CHANGE_ME_TO_A_LONG_RANDOM_STRING" {
 		return nil, fmt.Errorf("auth.secret is not set — edit %s", path)
+	}
+	if c.Download.BaseURL != "" {
+		u, err := url.Parse(c.Download.BaseURL)
+		if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" {
+			return nil, fmt.Errorf("download.base_url must be an http(s) URL without credentials, query or fragment")
+		}
+		c.Download.BaseURL = strings.TrimRight(u.String(), "/")
 	}
 	return &c, nil
 }

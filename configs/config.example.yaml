@@ -13,6 +13,8 @@ auth:
 
 download:
   root_dir: "./data/downloads"
+  # 可选：App 可访问的公网地址。留空时后台使用浏览器当前地址生成直链。
+  base_url: ""
 
 # 授权管理页面 http(s)://host/admin/ 的 Basic Auth 账号
 # 留空则关闭管理页面

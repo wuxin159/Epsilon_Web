@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -18,7 +19,8 @@ import (
 )
 
 // 编译时通过 ldflags 注入:
-//   go build -ldflags="-X main.buildCommit=abc -X main.buildTime=2026-..."
+//
+//	go build -ldflags="-X main.buildCommit=abc -X main.buildTime=2026-..."
 var (
 	buildCommit = "dev"
 	buildTime   = "unknown"
@@ -47,6 +49,13 @@ func main() {
 		slog.Error("migrate db", "err", err)
 		os.Exit(1)
 	}
+	if cfg.Download.RootDir == "" {
+		cfg.Download.RootDir = filepath.Join(filepath.Dir(cfg.Database.Path), "downloads")
+	}
+	if err := os.MkdirAll(cfg.Download.RootDir, 0o755); err != nil {
+		slog.Error("create download directory", "err", err)
+		os.Exit(1)
+	}
 	licenseRepo := storage.NewLicenseRepo(db)
 	fileRepo := storage.NewFileRepo(db)
 	auditRepo := storage.NewAuditRepo(db)
@@ -70,7 +79,8 @@ func main() {
 		})
 	})
 	handler.RegisterAuth(r, cfg, licenseRepo)
-	handler.RegisterDownload(r, cfg, licenseRepo)
+	handler.RegisterDownload(r, cfg, licenseRepo, fileRepo)
+	handler.RegisterFileLinks(r, cfg, fileRepo)
 	handler.RegisterUpdates(r, cfg, licenseRepo, fileRepo)
 	handler.RegisterAdmin(r, cfg, licenseRepo, fileRepo, auditRepo)
 

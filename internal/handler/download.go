@@ -3,7 +3,7 @@ package handler
 import (
 	"errors"
 	"net/http"
-	"path/filepath"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -15,7 +15,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func RegisterDownload(r *gin.Engine, cfg *config.Config, repo *storage.LicenseRepo) {
+func RegisterDownload(r *gin.Engine, cfg *config.Config, repo *storage.LicenseRepo, files *storage.FileRepo) {
 	r.GET("/api/v1/download/:file", func(c *gin.Context) {
 		machineCode := c.Query("machine_code")
 		timestamp, _ := strconv.ParseInt(c.Query("timestamp"), 10, 64)
@@ -40,12 +40,28 @@ func RegisterDownload(r *gin.Engine, cfg *config.Config, repo *storage.LicenseRe
 			return
 		}
 
-		filename := filepath.Base(c.Param("file"))
-		if filename == "" || filename == "." || strings.ContainsAny(filename, `/\`) {
+		filename := c.Param("file")
+		if filename == "" || filename != sanitizeFilename(filename) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "bad filename"})
 			return
 		}
-		fullPath := filepath.Join(cfg.Download.RootDir, filename)
-		c.FileAttachment(fullPath, filename)
+		fileMu.RLock()
+		meta, err := files.Get(filename)
+		// Preserve legacy downloads of manually placed files, but never expose
+		// unpublished/versioned objects by their internal storage names.
+		if errors.Is(err, storage.ErrFileNotFound) && !strings.HasPrefix(filename, ".epsilon-") {
+			meta, err = &storage.FileMeta{Filename: filename}, nil
+		}
+		var f *os.File
+		var info os.FileInfo
+		if err == nil {
+			f, info, err = openStoredFile(cfg.Download.RootDir, meta)
+		}
+		fileMu.RUnlock()
+		if err != nil {
+			downloadError(c, err)
+			return
+		}
+		serveOpenedFile(c, meta, f, info)
 	})
 }
